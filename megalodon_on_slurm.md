@@ -34,7 +34,7 @@ wget https://mirror.oxfordnanoportal.com/software/analysis/ont-guppy_5.0.14_linu
 tar zxvf ont-guppy_5.0.14_linux64.tar.gz
 ```
 
-## Setting up rerio ##
+## Setting up `rerio` ##
 
 From https://github.com/nanoporetech/rerio, plus modifications.
 
@@ -45,7 +45,7 @@ rerio/download_model.py rerio/basecall_models/res_dna_r941_min_modbases_5mC_CpG_
 cp ont-guppy/data/barcoding/* rerio/basecall_models/barcoding/  # enable barcoding support
 ```
 
-## Setting up megalodon ##
+## Setting up `megalodon` ##
 
 From https://github.com/nanoporetech/megalodon, plus modifications.
 
@@ -76,7 +76,7 @@ Traceback (most recent call last):
 ImportError: /home/lie128/.conda/envs/megalodon/lib/python3.8/site-packages/mappy.cpython-38-x86_64-linux-gnu.so: undefined symbol: __intel_sse2_strcpy
 ```
 
-Fix: recompile mappy with gcc
+Fix: recompile `mappy` with `gcc`
 
 ```shell
 pip remove mappy
@@ -105,7 +105,7 @@ Traceback (most recent call last):
 ImportError: /home/lie128/.conda/envs/megalodon/lib/python3.8/site-packages/megalodon/decode.cpython-38-x86_64-linux-gnu.so: undefined symbol: __svml_log1pf4
 ```
 
-Fix: also recompile megalodon with gcc
+Fix: also recompile `megalodon` with `gcc`
 
 ```shell
 pip remove megalodon
