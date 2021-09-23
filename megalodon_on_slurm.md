@@ -8,7 +8,32 @@ All three tools are under active development, so this pipeline (written Sept 202
 
 ## Preface ##
 
-I like to collate my downloaded tools in `~/tools`. It looks like this
+I have encountered weird compilation errors when the default compiler is `icc` (Intel's compiler). You can find out what the default is by running
+
+```shell
+module list
+Currently Loaded Modulefiles:
+  1) SC   2) slurm/current(default)   3) cuda-driver/current   4) intel-cc/16.0.1.150   5) intel-fc/16.0.1.150
+```
+
+If you see `intel-cc` and `intel-fc`, then yes, you're on icc.
+
+Change this to `gcc` to avoid the potholes I encountered when I initially used `icc` (see "Troubleshooting corner" below)
+
+```shell
+module unload intel-cc intel-fc
+
+module avail -l gcc
+- Package/Alias -----------------------.- Versions --------.- Last mod. -------
+/apps/modules/modulefiles:
+gcc/9.3.0                               default             2020/11/12 12:35:51
+gcc/10.3.0                                                  2020/11/12 13:47:38
+gcc/11.1.0                                                  2021/04/29 22:47:27
+
+module load gcc/11.1.0    # i belong to the cult of the new
+```
+
+Also, I like to collate my downloaded tools in `~/tools`. It looks like this
 
 ```shell
 ls -l ~/tools/
@@ -61,7 +86,7 @@ megalodon --help                      # should produce help screen, not "command
 
 ## Troubleshooting corner ##
 
-I'm still not 100% sure WHY these errors occur, but google + elbow grease led to fixes that work (mysteriously).
+I'm still not 100% sure WHY these errors occur, but google + elbow grease led to fixes that work (mysteriously). From brief discussion with SC, oddities could sometimes occur when mixing `conda` packages (usually compiled with `gcc`) and `pip install` stuff (which sometimes uses the system default compiler, `icc` in this case).
 
 Problem 1: `mappy` (Python bindings for `minimap2`, automatically installed by `pip install megalodon`) complains about intel sse2 something something.
 
