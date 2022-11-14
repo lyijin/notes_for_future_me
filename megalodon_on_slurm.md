@@ -2,7 +2,7 @@
 
 `megalodon` is an ONT-authored tool that calls modified bases from ONT reads. In this example, I wanted to call 5mC bases from reads produced from a GridION ( = MinION) machine.
 
-`megalodon` depends on `guppy` and also on `rerio`, all from ONT.
+`megalodon` depends on `guppy` and also on `remora`, all from ONT.
 
 All three tools are under active development, so this pipeline (written Sept 2021) might not apply in a few months' time.
 
@@ -59,17 +59,6 @@ wget https://mirror.oxfordnanoportal.com/software/analysis/ont-guppy_5.0.14_linu
 tar zxvf ont-guppy_5.0.14_linux64.tar.gz
 ```
 
-## Setting up `rerio` ##
-
-From https://github.com/nanoporetech/rerio, plus modifications.
-
-```shell
-git clone https://github.com/nanoporetech/rerio
-# models are poretype-specific and modified-base-specific. check `rerio` github for a full list of models; alter to taste
-rerio/download_model.py rerio/basecall_models/res_dna_r941_min_modbases_5mC_CpG_v001
-cp ont-guppy/data/barcoding/* rerio/basecall_models/barcoding/  # enable barcoding support
-```
-
 ## Setting up `megalodon` ##
 
 From https://github.com/nanoporetech/megalodon, plus modifications.
@@ -82,6 +71,33 @@ conda activate megalodon
 pip install megalodon
 
 megalodon --help                      # should produce help screen, not "command not found"
+megalodon --version                   # the version on pip might not be new enough to support all the
+                                      # fancy shmancy stuff
+
+# to get the absolutely most advanced version possible
+git clone https://github.com/nanoporetech/megalodon
+pip install -e megalodon/
+```
+
+## Setting up `remora` ##
+
+`remora` is in the process of superseding `rerio`, best to get used to using this now and ignore `rerio`.
+
+Docs are at https://github.com/nanoporetech/remora, installation is much easier than `rerio`.
+
+```shell
+pip install ont-remora
+```
+
+## (deprecated) Setting up `rerio` ##
+
+From https://github.com/nanoporetech/rerio, plus modifications.
+
+```shell
+git clone https://github.com/nanoporetech/rerio
+# models are poretype-specific and modified-base-specific. check `rerio` github for a full list of models; alter to taste
+rerio/download_model.py rerio/basecall_models/res_dna_r941_min_modbases_5mC_CpG_v001
+cp ont-guppy/data/barcoding/* rerio/basecall_models/barcoding/  # enable barcoding support
 ```
 
 ## Troubleshooting corner ##
@@ -164,18 +180,36 @@ megalodon ../00_raw_data/20210914_0348_X4_FAQ88026_aa298ba1/fast5_pass/ \
   --outputs basecalls mappings mod_mappings mods \
   --reference ../refs/homo_sapiens.KY962518.last_11kb_first.ont.mmi \
   --guppy-server-path ./ont-guppy/bin/guppy_basecall_server \
-  --guppy-params "-d ./rerio/basecall_models/ --num_callers 10" \
-  --guppy-config res_dna_r941_min_modbases_5mC_CpG_v001.cfg \
+  --guppy-config dna_r9.4.1_450bps_fast.cfg \  # this file depends on what kit/pore type was used in expt
   --guppy-timeout 600 \
-  --mod-motif m CG 0 \
+  --remora-modified-bases dna_r9.4.1_e8 fast 0.0.0 5mc CG 0 \  # this file depends on what kit/pore type was used in expt
   --suppress-progress-bars \
   --devices "${CUDA_VISIBLE_DEVICES}" --processes 14 --overwrite
 ```
 
-SLURM script that splits reads by barcode, for input data that looks like
+SLURM script that splits reads by barcode, for input data structured as
 
 ```shell
-ls -l ../00_raw_data/20210914_0348_X4_FAQ88026_aa298ba1/fast5_pass/
+$ ls -l */
+
+00_raw_reads/:
+total 4.0K
+drwxr-xr-x 7 lie128 hpc-users 4.0K Feb 17 12:15 20210914_0348_X4_FAQ88026_aa298ba1/
+
+03_remora_vs_45s/:
+total 4.0K
+drwxr-xr-x 5 lie128 hpc-users 4.0K Feb 17 12:28 ont-guppy/
+
+refs/:
+total 280K
+-rw-r--r-- 1 lie128 hpc-users 278K Jun 17  2021 homo_sapiens.KY962518.last_11kb_first.ont.mmi
+```
+
+and
+
+```shell
+$ ls -l 00_raw_data/20210914_0348_X4_FAQ88026_aa298ba1/fast5_pass/
+
 total 52K
 drwxr-xr-x 2 lie128 hpc-users 4.0K Sep 16 12:22 barcode13/
 drwxr-xr-x 2 lie128 hpc-users 4.0K Sep 16 12:22 barcode14/
@@ -192,6 +226,8 @@ drwxr-xr-x 2 lie128 hpc-users 4.0K Sep 16 12:22 barcode24/
 drwxr-xr-x 2 lie128 hpc-users 4.0K Sep 16 12:22 unclassified/
 ```
 
+My SLURM script only calls 5mC in the CpG context, as I'm not that interested in non-CpG methylation nor 5hmC bases.
+
 ```shell
 #!/bin/bash
 #SBATCH --job-name=test_meg_gpu
@@ -206,7 +242,7 @@ drwxr-xr-x 2 lie128 hpc-users 4.0K Sep 16 12:22 unclassified/
 
 echo assigned CUDA device: ${CUDA_VISIBLE_DEVICES}
 
-for a in ../00_raw_data/20210914_0348_X4_FAQ88026_aa298ba1/fast5_pass/*
+for a in ../00_raw_reads/20210914_0348_X4_FAQ88026_aa298ba1/fast5_pass/*
 do
   b=`basename ${a}`
   megalodon ${a} \
@@ -214,10 +250,9 @@ do
     --output-directory ${b} \
     --reference ../refs/homo_sapiens.KY962518.last_11kb_first.ont.mmi \
     --guppy-server-path ./ont-guppy/bin/guppy_basecall_server \
-    --guppy-params "-d ./rerio/basecall_models/ --num_callers 10" \
-    --guppy-config res_dna_r941_min_modbases_5mC_CpG_v001.cfg \
+    --guppy-config dna_r9.4.1_450bps_fast.cfg \  # this file depends on what kit/pore type was used in expt
     --guppy-timeout 600 \
-    --mod-motif m CG 0 \
+    --remora-modified-bases dna_r9.4.1_e8 fast 0.0.0 5mc CG 0 \  # this file depends on what kit/pore type was used in expt
     --suppress-progress-bars \
     --devices "${CUDA_VISIBLE_DEVICES}" --processes 14 --overwrite
 done
@@ -234,3 +269,7 @@ The files you should pay attention to are "modified_bases.5mC.bed" files in the 
 https://www.encodeproject.org/data-standards/wgbs/
 
 TL;DR coverage is in penultimate column, methyl % is in final column.
+
+# Postscript #
+
+From asking ONT and reading docs, `rerio` was trained on a mix of WGBS and synthetic datasets (PCR-ed DNA for unmethylated DNA, M.SssI-treated for methylated DNA). `remora` was however trained purely on synthetic datasets.
